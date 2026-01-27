@@ -1,13 +1,21 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, URL
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.core.config import get_settings
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 
 settings = get_settings()
 
+DATABASE_URL = URL.create(
+    drivername=settings.DB_DRIVER,
+    username=settings.DB_USER,
+    password=settings.DB_PASSWORD or None,  # maneja password vacío correctamente
+    host=settings.DB_HOST,
+    port=settings.DB_PORT,
+    database=settings.DB_NAME,
+)
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,  # verifica conexiones antee de usarlas
+    DATABASE_URL,
+    pool_pre_ping=True,  # verifica conexiones antes de usarlas | si sigue activa
 )
 
 SessionLocal = sessionmaker(
@@ -15,5 +23,8 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine,
 )
-# Mapeador ORM
-Base = declarative_base()
+
+
+# Base para los modelos ORM
+class Base(DeclarativeBase):
+    pass

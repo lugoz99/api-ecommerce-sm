@@ -1,8 +1,22 @@
-from sqlalchemy import Column, Integer, String, true
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database.session import Base
+
+if TYPE_CHECKING:
+    from .product import Product
 
 
 class Category(Base):
     __tablename__ = "categories"
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # One-to-Many: Category -> Product
+    products: Mapped[list["Product"]] = relationship(
+        "Product", back_populates="category", cascade="all, delete-orphan"
+    )

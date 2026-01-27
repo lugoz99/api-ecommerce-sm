@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 # importar settings de tu core
 from app.core.config import get_settings
-from app.database.session import Base
+from app.database.session import DATABASE_URL, Base
 from app.database import models  # fuerza carga de modelos
 
 
@@ -18,7 +18,7 @@ settings = get_settings()
 
 # Configuración de Alembic
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", str(DATABASE_URL))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
