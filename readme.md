@@ -241,3 +241,10 @@ Una vez el servidor está corriendo:
 Swagger UI: http://127.0.0.1:8000/docs
 
 Redoc: http://127.0.0.1:8000/redoc
+
+"""
+interpretes = relationship('Interprete', cascade='all, delete, delete-orphan')
+all ->se aplica para hacer propagación de operaciones cuando se guarda o actualiza información. Por ejemplo, cuando se crea una canción con dos intérpretes, al almacenar la canción se deben almacenar los intérpretes también.
+delete -> se aplica al momento de borrar un objeto, de manera que los objetos relacionados también se borren. Por ejemplo, al borrar una canción se deben borrar sus intérpretes.
+delete-orphan -> se aplica al momento de desasociar un objeto relacionado, por ejemplo, cuando un intérprete deja de hacer parte de una canción, al guardar los cambios el intérprete debe ser borrado
+""""

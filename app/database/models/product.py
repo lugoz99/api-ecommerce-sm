@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Numeric
+from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
@@ -20,24 +21,34 @@ class Product(Base):
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     brand: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(255))
-    tags: Mapped[dict] = mapped_column(JSON)
+    tags: Mapped[dict[str, Any]] = mapped_column(JSON)
+    # Fechas automáticas
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
 
-    created_at: Mapped[DateTime] = mapped_column(DateTime)
-    updated_at: Mapped[DateTime] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
-    # Many-to-One: Product -> Category
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
-
-    category: Mapped["Category"] = relationship("Category", back_populates="products")
+    # Relación inversa con Category
+    category: Mapped["Category"] = relationship(
+        "Category",
+        back_populates="products",
+    )
 
     # One-to-Many: Product -> ProductImage
-    # Si borras una Category → se borran sus Product
-
-    # Si quitas un Product de category.products → se borra de la BD
-
-    # Evita productos “huérfanos
+    # Si borras un Product → se borran sus imágenes
     images: Mapped[list["ProductImage"]] = relationship(
-        "ProductImage", back_populates="product", cascade="all, delete-orphan"
+        "ProductImage",
+        back_populates="product",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

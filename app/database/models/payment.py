@@ -1,22 +1,27 @@
-from pymysql import Date
-from sqlalchemy import Column, Enum, Integer, Numeric, String
-from app.database.session import Base
 import enum
 from datetime import datetime, timezone
+from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
+from app.database.session import Base
 
 
-class Status(enum.Enum):
+class PaymentStatus(str, enum.Enum):
     pending = "pending"
     processing = "processing"
     completed = "completed"
     failed = "failed"
-    cancelled = "failed"
+    cancelled = "cancelled"
 
 
 class Payment(Base):
     __tablename__ = "payments"
-    id = Column(Integer, primary_key=True)
-    total_amount = Column(Numeric(10, 2), nullable=False)
-    method = Column(String(100), nullable=False)
-    created_at = Column(Date, lambda: datetime.now(timezone.utc))
-    status = Column(Enum(Status))
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    method: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), nullable=False)
+
+    order_id: Mapped[int] = ForeignKey("order_id")

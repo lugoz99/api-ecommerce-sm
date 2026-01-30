@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 # Importa routers
-from app.api.v1.endpoints import user  # apunta al user.py dentro de endpoints
+from app.api.v1.endpoints import user
 
 app = FastAPI(
     title="Test Alembic App",
