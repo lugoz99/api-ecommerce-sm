@@ -9,6 +9,7 @@ class ProductCreate(CustomBase):
     brand: str
     description: str
     tags: dict | None
+    category_id: int
 
 
 class ProductResponse(CustomBase):

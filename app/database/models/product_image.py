@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from sqlalchemy import ForeignKey, Integer, String, Boolean
+from sqlalchemy import ForeignKey, String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
@@ -16,6 +16,8 @@ class ProductImage(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     url: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    cloud_id: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Many-to-One: ProductImage -> Product
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))

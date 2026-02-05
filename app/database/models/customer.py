@@ -20,5 +20,4 @@ class Customer(Base):
     phone_number: Mapped[str] = mapped_column(String(100), nullable=False)
     address: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at = mapped_column(default=lambda: datetime.now(timezone.utc))
-
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="customer")
