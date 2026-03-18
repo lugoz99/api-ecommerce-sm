@@ -1,3 +1,4 @@
+from idna import intranges_contain
 from app.schemas.category import CategoryResponse
 from app.schemas.custom_base import CustomBase
 
@@ -33,3 +34,8 @@ class ProductUpdate(CustomBase):
     description: str
     tags: dict | None
     category_id: int
+
+
+class ReviewCreate(CustomBase):
+    rating: int
+    comment: str

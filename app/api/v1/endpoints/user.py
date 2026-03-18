@@ -4,7 +4,7 @@ from app.api.dependencies.database import get_db
 from app.schemas.user import UserCreate, UserRead
 from app.services.user_service import UserService
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter()
 
 
 @router.post("/", response_model=UserRead)
