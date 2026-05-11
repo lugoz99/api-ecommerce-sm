@@ -39,3 +39,11 @@ class ProductUpdate(CustomBase):
 class ReviewCreate(CustomBase):
     rating: int
     comment: str
+
+
+class ProductImageResponse(CustomBase):
+    id: int
+    url: str
+    product_id: int
+    cloud_id: str
+    is_main: bool

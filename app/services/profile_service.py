@@ -1,5 +1,6 @@
 from exceptiongroup import catch
 from pymysql import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.models.profile import Profile
@@ -21,6 +22,10 @@ class ProfileService:
             return new_profile
         except IntegrityError as e:
             logger.error("DATABASE ERRROR", e)
+            
+    @staticmethod
+    def get(db: Session):
+        return db.scalars(select(Profile)).all()
 
     @staticmethod
     def update(db: Session, id: int, profile_data: ProfileCreate):

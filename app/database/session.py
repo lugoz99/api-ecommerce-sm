@@ -1,4 +1,4 @@
-from sqlalchemy.engine import create_engine, URL
+from sqlalchemy.engine import Engine, create_engine, URL
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.core.config import get_settings
 
@@ -13,7 +13,7 @@ DATABASE_URL = URL.create(
     database=settings.DB_NAME,
 )
 
-engine = create_engine(
+engine:Engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,  # verifica conexiones antes de usarlas | si sigue activa
 )

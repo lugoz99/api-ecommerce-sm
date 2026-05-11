@@ -10,6 +10,3 @@ class UserRead(BaseModel):
     id: int
     email: EmailStr
     name: str
-
-    class Config:
-        orm_mode = True

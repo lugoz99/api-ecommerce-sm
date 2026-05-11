@@ -35,6 +35,11 @@ project_name/
 │ │ ├── config.py
 │ │ └── security.py
 │ │
+│ ├── exceptions/
+│ │ ├── **init**.py
+│ │ ├── custom_exceptions.py
+│ │ └── handlers.py
+│ │
 │ ├── database/
 │ │ ├── **init**.py
 │ │ ├── base.py
@@ -124,6 +129,48 @@ Aquí van:
 Regla importante:
 
 Nada en core debe depender de FastAPI.
+
+---
+
+### app/exceptions/
+
+Gestión centralizada de excepciones personalizadas.
+
+Aquí se definen:
+
+- Excepciones personalizadas de la aplicación
+- Manejadores de excepciones (exception handlers)
+- Mapeadores de errores a respuestas HTTP
+
+**Excepciones disponibles:**
+
+- `ValidationException` (422): Error de validación de datos
+- `NotFoundException` (404): Recurso no encontrado
+- `UnauthorizedException` (401): Usuario no autenticado
+- `ForbiddenException` (403): Usuario sin permisos suficientes
+- `ConflictException` (409): Conflicto al crear o actualizar
+- `InternalServerException` (500): Error interno del servidor
+
+**Uso en servicios:**
+
+```python
+from app.exceptions import NotFoundException, ValidationException
+
+def get_user(user_id: int):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise NotFoundException(f"Usuario con id {user_id} no encontrado")
+    return user
+```
+
+**Registrar handlers en main.py:**
+
+```python
+from app.exceptions import register_exception_handlers
+
+app = FastAPI()
+register_exception_handlers(app)
+```
 
 ---
 

@@ -17,6 +17,7 @@ class ProductImage(Base):
 
     url: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # public id -> let's say the id that cloudinary gives us to manage the image (delete, update, etc)
     cloud_id: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Many-to-One: ProductImage -> Product
