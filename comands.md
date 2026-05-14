@@ -11,7 +11,7 @@
 # Usando Uvicorn, desde la raíz del proyecto
 
 2️⃣ Comandos para correr tu FastAPI
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload | fastapi dev
 
 3️⃣ Acceder a Swagger
 

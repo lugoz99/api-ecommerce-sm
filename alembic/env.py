@@ -8,13 +8,13 @@ from alembic import context
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 # importar settings de tu core
-from app.core.config import get_settings
+from app.core.config import settings
 from app.database.session import DATABASE_URL, Base
 from app.database import models  # fuerza carga de modelos
 
 
 # cargar settings
-settings = get_settings()
+settings = settings
 
 # Configuración de Alembic
 config = context.config

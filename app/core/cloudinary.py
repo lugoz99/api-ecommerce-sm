@@ -1,45 +1,53 @@
 # app/core/cloudinary.py
+
+import logging
+from functools import lru_cache
+
 import cloudinary
 import cloudinary.uploader
-from functools import lru_cache
-import logging
 
-from .config import get_settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-@lru_cache()
+@lru_cache
 def configure_cloudinary() -> None:
     """
-    Configura Cloudinary una sola vez al iniciar la app.
-    Usa @lru_cache para ejecutarse solo una vez.
+    Configure Cloudinary one time.
     """
-    settings = get_settings()
 
+    # Connect Cloudinary with app settings
     cloudinary.config(
         cloud_name=settings.CLOUDINARY_CLOUD_NAME,
         api_key=settings.CLOUDINARY_API_KEY,
         api_secret=settings.CLOUDINARY_API_SECRET,
-        secure=settings.CLOUDINARY_SECURE,
+        secure=True,
     )
 
-    logger.info(f"Cloudinary configurado: {settings.CLOUDINARY_CLOUD_NAME}")
+    # Log success message
+    logger.info("Cloudinary configured successfully")
 
 
 def get_cloudinary_uploader():
     """
-    Obtiene el uploader de Cloudinary ya configurado.
+    Return Cloudinary uploader.
     """
+
+    # Make sure Cloudinary is configured
     configure_cloudinary()
+
     return cloudinary.uploader
 
 
 def get_cloudinary_url_helper():
     """
-    Obtiene helper para generar URLs de Cloudinary.
+    Return Cloudinary URL helper.
     """
+
+    # Make sure Cloudinary is configured
     configure_cloudinary()
+
     from cloudinary.utils import cloudinary_url
 
     return cloudinary_url

@@ -1,7 +1,8 @@
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.database.models.category import Category
 from app.exceptions.custom_exceptions import ConflictException, NotFoundException
-from app.schemas.category import CategoryCreate
+from app.schemas.category import BulkCategoryResponse, CategoryCreate, CategoryUpdate
 from sqlalchemy import exists, insert, select
 
 
@@ -26,45 +27,89 @@ class CategoryService:
             raise e
 
     @staticmethod
-    def bulk_create(db: Session, categories_schema: list[CategoryCreate]):
-        try:
-            # 1. Obtener todos los nombres que vienen
-            names = [c.name for c in categories_schema]
+    def exist_by_name(db: Session, name: str) -> bool:
+        stmt = select(exists().where(Category.name == name))
+        return db.scalar(stmt)
 
-            # 2. Traer los nombres que ya existen (1 sola query)
+    @staticmethod
+    def get_by_id(db: Session, category_id: int) -> Category | None:
+        try:
+            category_db = db.get(Category, category_id)
+            if category_db is None:
+                raise NotFoundException("Category not found")
+            return category_db
+        except SQLAlchemyError:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def update(db: Session, category_update: CategoryUpdate) -> Category:
+        category_db = db.get(Category, category_update.id)
+        if category_db is None:
+            raise NotFoundException("Category not found")
+        if CategoryService.exist_by_name(db, category_update.name):
+            raise ConflictException("The category already existS!")
+        try:
+            category_db.name = category_update.name
+            db.commit()
+            db.refresh(category_db)
+            return category_db
+        except SQLAlchemyError:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def delete(db: Session, category_id: int) -> None:
+        category_db = db.get(Category, category_id)
+        if category_db is None:
+            raise NotFoundException("Category not found")
+        try:
+            db.delete(category_db)
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def bulk_create(
+        db: Session, categories_schema: list[CategoryCreate]
+    ) -> BulkCategoryResponse:
+        try:
+            # Obtener todos los nombres enviados
+            names = [category.name for category in categories_schema]
+
+            # Consultar cuáles ya existen en DB
             existing = (
                 db.execute(select(Category.name).where(Category.name.in_(names)))
                 .scalars()
                 .all()
             )
 
+            # Convertir a set para búsqueda rápida O(1)
             existing_set = set(existing)
+            created_categories = []
+            already_exists = []
 
-            # 3. Filtrar solo los nuevos
-            new_data = [
-                c.model_dump() for c in categories_schema if c.name not in existing_set
-            ]
+            for category in categories_schema:
+                if category.name in existing_set:
+                    already_exists.append(category.name)
+                else:
+                    created_categories.append(Category(**category.model_dump()))
 
-            # 4. Insertar en bloque
-            if new_data:
-                db.execute(insert(Category), new_data)
+            if created_categories:
+                db.add_all(created_categories)
+                db.commit()
+                # Refrescar para obtener ids y defaults
+                for category in created_categories:
+                    db.refresh(category)
 
-            db.commit()
-            return new_data
+            # Retornar resultado detallado
+            return BulkCategoryResponse(
+                created=created_categories,
+                already_exists=already_exists,
+            )
 
-        except Exception:
+        except SQLAlchemyError:
+            # Revertir transacción en caso de error
             db.rollback()
             raise
-
-    @staticmethod
-    def exist_by_name(db: Session, name: str) -> bool:
-        stmt = select(exists().where(Category.name == name))
-        return db.scalar(stmt)
-
-    @staticmethod
-    def delete(db: Session, id: int) -> bool:
-        categoryDb = db.get(Category, id)
-        if not categoryDb:
-            raise NotFoundException("Category not found")
-        db.delete(categoryDb)
-        db.commit()

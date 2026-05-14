@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.database.models.category import Category
 from app.database.models.product import Product
+from app.exceptions.custom_exceptions import NotFoundException
 from app.schemas.product import ProductCreate, ProductUpdate
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,8 @@ class ProductService:
     def create(db: Session, product_data: ProductCreate) -> Product:
         category_exists = db.get(Category, product_data.category_id)
         if not category_exists:
-            raise ValueError(
-                f"Category with ID {product_data.category_id} does not exist"
+            raise NotFoundException(
+                f"Category with ID {product_data.category_id} does not exist!"
             )
         product = Product(**product_data.model_dump())
         db.add(product)
@@ -32,7 +33,7 @@ class ProductService:
 
     @staticmethod
     def get_all(db: Session) -> list[Product]:
-        # * scalars convierte el result en objeto itereable | scalar es para solo devolver on campo
+        # * scalars convierte el result en objeto itereable | scalar es para solo devolver un campo
         return db.scalars(select(Product)).all()
 
     @staticmethod

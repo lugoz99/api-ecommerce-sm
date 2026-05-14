@@ -2,10 +2,12 @@
 
 import logging
 import uuid
+import io
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
+from PIL import Image
 
 from app.core.cloudinary import get_cloudinary_uploader
 
@@ -67,6 +69,29 @@ class ProductImageService:
             "image/"
         ):
             raise ValidationException("El archivo enviado no es una imagen válida")
+
+        # =========================================================
+        # 2.1 VALIDAR CONTENIDO REAL CON PILLOW
+        # =========================================================
+        # Evita archivos falsificados que dicen ser imágenes
+        # pero no lo son realmente.
+        #
+        try:
+            # Leer contenido del archivo
+            image_content = await image_file.read()
+
+            # Validar que sea una imagen real
+            img = Image.open(io.BytesIO(image_content))
+            img.verify()
+
+            # Resetear el cursor del archivo para poder leerlo después
+            await image_file.seek(0)
+
+        except Exception as e:
+            logger.warning("Validación de imagen fallida: %s", str(e))
+            raise ValidationException(
+                "El archivo no es una imagen válida o está corrupto"
+            )
 
         # =========================================================
         # 3. OBTENER CLIENTE DE CLOUDINARY
@@ -208,3 +233,263 @@ class ProductImageService:
         return (
             db.query(ProductImage).filter(ProductImage.product_id == product_id).all()
         )
+
+    async def delete_product_image(
+        self,
+        db: Session,
+        image_id: int,
+    ) -> dict:
+        """
+        Elimina una imagen de un producto.
+
+        Responsabilidades:
+        - Buscar la imagen en BD
+        - Eliminar de Cloudinary usando cloud_id
+        - Eliminar registro de BD
+        - Manejar errores
+
+        Args:
+            db: Sesión de base de datos
+            image_id: ID de la imagen a eliminar
+
+        Returns:
+            dict con mensaje de éxito
+
+        Raises:
+            NotFoundException: Si la imagen no existe
+        """
+
+        # =====================================================
+        # 1. BUSCAR IMAGEN EN BD
+        # =====================================================
+        image = db.query(ProductImage).filter(ProductImage.id == image_id).first()
+
+        if not image:
+            raise NotFoundException(f"Imagen con ID {image_id} no encontrada")
+
+        # =====================================================
+        # 2. OBTENER UPLOADER DE CLOUDINARY
+        # =====================================================
+        uploader = get_cloudinary_uploader()
+
+        try:
+            # =====================================================
+            # 3. ELIMINAR DE CLOUDINARY USANDO cloud_id
+            # =====================================================
+            # El cloud_id es el public_id que guardamos al subir
+            #
+            # Ejemplo: product_15_a8f91c3a-1234
+            #
+            await run_in_threadpool(
+                uploader.destroy,
+                image.cloud_id,
+            )
+
+            # =====================================================
+            # 4. ELIMINAR DE BASE DE DATOS
+            # =====================================================
+            db.delete(image)
+            db.commit()
+
+            # =====================================================
+            # 5. LOG DE ÉXITO
+            # =====================================================
+            logger.info(
+                "Imagen %s eliminada (cloud_id: %s)",
+                image_id,
+                image.cloud_id,
+            )
+
+            return {
+                "success": True,
+                "message": "Imagen eliminada correctamente",
+                "image_id": image_id,
+            }
+
+        except Exception as e:
+            db.rollback()
+            logger.exception("Error eliminando imagen %s", image_id)
+            raise
+
+    async def replace_product_image(
+        self,
+        db: Session,
+        image_id: int,
+        image_file: UploadFile,
+    ) -> ProductImage:
+        """
+        Reemplaza una imagen existente por una nueva.
+
+        Flujo:
+        1. Buscar imagen actual
+        2. Validar nuevo archivo
+        3. Subir a Cloudinary con MISMO cloud_id (overwrite=True)
+        4. Actualizar URL en BD
+        5. Si falla, restaurar imagen antigua
+
+        Args:
+            db: Sesión de base de datos
+            image_id: ID de la imagen a reemplazar
+            image_file: Nuevo archivo de imagen
+
+        Returns:
+            Objeto ProductImage actualizado
+
+        Raises:
+            NotFoundException: Si la imagen no existe
+            ValidationException: Si el archivo no es válido
+        """
+
+        # =====================================================
+        # 1. BUSCAR IMAGEN ACTUAL
+        # =====================================================
+        image = db.query(ProductImage).filter(ProductImage.id == image_id).first()
+
+        if not image:
+            raise NotFoundException(f"Imagen con ID {image_id} no encontrada")
+
+        # =====================================================
+        # 2. VALIDAR NUEVO ARCHIVO
+        # =====================================================
+        if not image_file.content_type or not image_file.content_type.startswith(
+            "image/"
+        ):
+            raise ValidationException("El archivo enviado no es una imagen válida")
+
+        try:
+            image_content = await image_file.read()
+            img = Image.open(io.BytesIO(image_content))
+            img.verify()
+            await image_file.seek(0)
+
+        except Exception as e:
+            logger.warning("Validación de imagen fallida: %s", str(e))
+            raise ValidationException(
+                "El archivo no es una imagen válida o está corrupto"
+            )
+
+        # =====================================================
+        # 3. OBTENER UPLOADER
+        # =====================================================
+        uploader = get_cloudinary_uploader()
+
+        try:
+            # =====================================================
+            # 4. SUBIR A CLOUDINARY CON MISMO cloud_id
+            # =====================================================
+            # overwrite=True permite reemplazar un archivo
+            # existente si usamos el MISMO public_id
+            #
+            upload_result = await run_in_threadpool(
+                uploader.upload,
+                image_file.file,
+                folder="products",
+                public_id=image.cloud_id,  # ← MISMO ID (reemplaza)
+                overwrite=True,
+            )
+
+            # =====================================================
+            # 5. ACTUALIZAR URL EN BD
+            # =====================================================
+            # La URL puede cambiar si Cloudinary procesa la imagen
+            # El cloud_id sigue siendo el mismo
+            #
+            image.url = upload_result["secure_url"]
+            db.commit()
+            db.refresh(image)
+
+            # =====================================================
+            # 6. LOG DE ÉXITO
+            # =====================================================
+            logger.info(
+                "Imagen %s reemplazada (cloud_id: %s)",
+                image_id,
+                image.cloud_id,
+            )
+
+            return image
+
+        except Exception as e:
+            db.rollback()
+            logger.exception("Error reemplazando imagen %s", image_id)
+            raise
+
+    def set_main_image(
+        self,
+        db: Session,
+        product_id: int,
+        image_id: int,
+    ) -> ProductImage:
+        """
+        Establece una imagen como principal de un producto.
+
+        Flujo:
+        1. Quitar is_main=True de TODAS las imágenes del producto
+        2. Establecer is_main=True en la imagen seleccionada
+        3. Guardar cambios
+
+        Args:
+            db: Sesión de base de datos
+            product_id: ID del producto
+            image_id: ID de la imagen a establecer como principal
+
+        Returns:
+            Objeto ProductImage actualizado
+
+        Raises:
+            NotFoundException: Si la imagen no existe
+        """
+
+        # =====================================================
+        # 1. BUSCAR IMAGEN
+        # =====================================================
+        image = (
+            db.query(ProductImage)
+            .filter(
+                ProductImage.id == image_id,
+                ProductImage.product_id == product_id,
+            )
+            .first()
+        )
+
+        if not image:
+            raise NotFoundException(
+                f"Imagen {image_id} no encontrada para el producto {product_id}"
+            )
+
+        try:
+            # =====================================================
+            # 2. QUITAR MAIN DE TODAS LAS IMÁGENES
+            # =====================================================
+            # Asegurar que solo haya UNA imagen principal
+            #
+            db.query(ProductImage).filter(
+                ProductImage.product_id == product_id,
+                ProductImage.is_main.is_(True),
+            ).update({"is_main": False})
+
+            # =====================================================
+            # 3. ESTABLECER COMO PRINCIPAL LA NUEVA
+            # =====================================================
+            image.is_main = True
+            db.commit()
+            db.refresh(image)
+
+            # =====================================================
+            # 4. LOG DE ÉXITO
+            # =====================================================
+            logger.info(
+                "Imagen %s establecida como principal para producto %s",
+                image_id,
+                product_id,
+            )
+
+            return image
+
+        except Exception as e:
+            db.rollback()
+            logger.exception(
+                "Error estableciendo imagen principal para producto %s",
+                product_id,
+            )
+            raise

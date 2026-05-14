@@ -12,9 +12,9 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 # DB
-from app.database.session import get_db
 
 # SERVICES
+from app.api.dependencies.database import get_db
 from app.schemas.product import ProductImageResponse
 from app.services.product_image_service import ProductImageService
 

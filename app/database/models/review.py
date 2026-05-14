@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from datetime import datetime, date
-from sqlalchemy import Date, DateTime, ForeignKey, func
+from sqlalchemy import Date, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, validates, relationship
 
 from app.database.session import Base
@@ -16,7 +16,8 @@ class Review(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    comment: Mapped[str] = mapped_column(nullable=False)
+    # Comentario largo
+    comment: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Fecha del día automáticamente (sin hora)
     review_date: Mapped[date] = mapped_column(
@@ -26,7 +27,7 @@ class Review(Base):
     )
 
     # Rating entre 1 y 5
-    rating: Mapped[int] = mapped_column(nullable=False)
+    rating: Mapped[int] = mapped_column(nullable=True)
 
     # Fecha y hora de creación automática
     created_at: Mapped[datetime] = mapped_column(
@@ -35,9 +36,10 @@ class Review(Base):
         server_default=func.now(),
     )
 
-    # Many to one , mucho va la foreing key
+    # Many to one , mucho va la foreign key
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
-    # back_popultaes -> Sincroniza ambos lados de una relación bidireccional
+
+    # back_populates -> Sincroniza ambos lados de una relación bidireccional
     product: Mapped["Product"] = relationship()
 
     # Validación del rango de rating
