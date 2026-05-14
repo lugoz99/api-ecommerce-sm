@@ -23,7 +23,6 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     method: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -34,3 +33,8 @@ class Payment(Base):
         ForeignKey("orders.id"), nullable=False, unique=True
     )
     order: Mapped["Order"] = relationship("Order", back_populates="payment")
+
+    @property
+    def amount(self) -> Decimal:
+        """Retorna el monto total del pedido asociado"""
+        return self.order.total_amount
